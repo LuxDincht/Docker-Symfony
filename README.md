@@ -57,7 +57,7 @@ Afin de créer votre projet, nous allons utiliser `composer` avec Docker !
 
 Comment faire ?
 
-1. Ouvrir un Terminal avec votre IDE favori (PhpStorm).
+1. **Ouvrir un Terminal** avec votre IDE favori (PhpStorm).
 2. Placez vous dans le dossier `docker`.
 3. Exécuter la commande `docker-compose -f cmd.yml run --rm composer create-project symfony/website-skeleton .`
 
@@ -100,15 +100,111 @@ Une fois cela fait, ouvrir son navigateur et saisir l'url `dev.local:8080`.
 
 ## Commandes
 
-### PHPUnit
+Vous pouvez exécuter de 2 manières les commandes.
+
+### Classique
+
+La première est de se connecter au container PHP, puis d'exécuter de manière classique les commandes.
+
+```bash
+docker-compose exec php7 bash
+```
+
+Puis par exemple :
+- Lancer vos TU => `php bin/phpunit`
+- Commande Symfony => `sf [VOS_PARAMETRES]`
+
+### Docker
+
+L'autre possibilité est de les lancer via les services par Docker.
+
+1. Soit avec `docker-compose run --rm [SERVICE] [PARAM_COMMANDE]` qui va créer un container temporaire pour l'exécution de la commande.
+2. Ou `docker-compose exec [SERVICE] [COMMANDE]` qui va exécuter dans le container qui tourne la commande indiqué.
+
+#### Exemples
+
+##### Tests Unitaires
 
 Afin d'exécuter vos Tests Unitaires, il vous suffit comme pour `composer` de lancer la commande :
 ```bash
 docker-compose run --rm php7 bin/phpunit
 ```
 
-### Symfony
+##### Symfony
 
 ```bash
 docker-compose run --rm php7 bin/console [VOS_PARAMETRES]
 ```
+
+(ou)
+
+```bash
+docker-compose exec php7 php bin/console [VOS_PARAMETRES]
+```
+
+
+
+## Debug
+
+Utilisation de **XDEBUG** pour le debug PHP.
+
+### Configuration Stack
+
+Il faut tout d'abord configurer votre Stack pour qu'elle puisse remonter sur votre IDE (dans notre cas PHPStorm).  
+Pour cela, il va vous falloir l'**IP de votre machine hôte**. (exemple: 192.168.0.24)  
+
+Dans le fichier `.env`, vous y trouverez une ligne pour Xdebug :
+```
+XDEBUG_CONFIG="remote_port=9000 remote_host=[VOTRE_IP] remote_connect_back=0 idekey=PHPSTORM"
+```
+
+- **remote_port** : Port de connexion au container PHP.
+- **remote_host** : IP de votre machine hôte.
+- **remote_connect_back** : Recherche automatique de l'IP hôte (ici désactivé car sous Windows)
+- **idekey** : Clef d'identification, permet le rattrachement au debug.
+
+### Configuration IDE
+
+Dans notre cas, nous sommes sous **PHPStorm**.
+
+**Languages & Frameworks > PHP**
+- CLI Interpreters
+    - Brancher votre Docker dans votre IDE (TCP socket).
+    - Sélectionner l'image PHP construite de notre projet ([VOTRE_REPO]/php:7-fpm)
+    - Reload phpinfo
+    - Apply
+- Docker container
+    - Faire pointer le répertoire du container `/project/html` vers celui du projet sur votre disque `[CHEMIN_ABSOLU]/web`
+    - OK et Apply
+	
+**Languages & Frameworks > PHP > Debug**
+- Xdebug
+    - Debug port : `9000`
+		
+**Languages & Frameworks > PHP > Debug > DBGp Proxy**
+- IDE key : `PHPSTORM`
+- Port : `9000`
+	
+**Run/Debug Configurations**
+- PHP Remote Debug
+    - Filter debug connection by IDE key : Coché
+        - Server
+            - Host : `dev.local`
+            - Port : `8080`
+            - Debugger : `Xdebug`
+            - Use path mappings : coché
+            - Renseigner le chemin du répertoire `web` du projet vers celui du container `/project/html`
+        - IDE key : `PHPSTORM`
+    - Apply
+
+### Utilisation
+
+Vous pouvez maintenant :
+1. **Démarrer vos containers**.
+2. **Lancer le Debug** dans PHPStorm. (Il devrait indiquer "Waiting for incoming connection with ide key 'PHPSTORM'")
+3. **Accéder a votre application** via votre navigateur en ajoutant à la fin de l'URL :
+```
+?XDEBUG_SESSION_START=PHPSTORM
+```
+
+Maintenant à vous de jouer avec les Breakpoints !
